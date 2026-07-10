@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1E3A2F">
+<title>帳本 · Jason's Ledger</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cover:#1E3A2F;        /* 存摺封面深綠 */
+  --cover-deep:#142B22;
+  --paper:#FAF7F0;        /* 內頁米白 */
+  --paper-soft:#F1EDE3;
+  --ink:#23271F;
+  --muted:#8B8578;
+  --line:rgba(35,39,31,.12);
+  --gold:#C8A24A;         /* 燙金 */
+  --red:#B5483A;          /* 支出紅 */
+  --green-ok:#3A6B4E;
+  --radius:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{font-size:16px}
+body{
+  background:var(--cover);
+  color:var(--ink);
+  font-family:'Noto Sans TC',sans-serif;
+  min-height:100vh;
+}
+.mono{font-family:'IBM Plex Mono',monospace}
+.app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+
+/* ── 封面 header ── */
+.cover{
+  padding:calc(env(safe-area-inset-top) + 20px) 20px 18px;
+  color:#EFE9DA;
+}
+.cover-top{display:flex;align-items:baseline;justify-content:space-between}
+.cover h1{
+  font-family:'Noto Serif TC',serif;font-weight:900;font-size:1.35rem;letter-spacing:.14em;
+}
+.cover h1 .gold{color:var(--gold)}
+.cover-sub{font-size:.68rem;letter-spacing:.28em;color:rgba(239,233,218,.55);text-transform:uppercase}
+.month-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:16px}
+.month-nav button{
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#EFE9DA;
+  width:36px;height:36px;border-radius:10px;font-size:1rem;cursor:pointer;font-family:inherit;
+}
+.month-nav button:active{background:rgba(255,255,255,.18)}
+.month-label{
+  font-family:'Noto Serif TC',serif;font-weight:700;font-size:1.15rem;letter-spacing:.08em;min-width:130px;text-align:center;
+}
+.month-label small{display:block;font-family:'IBM Plex Mono',monospace;font-weight:400;font-size:.62rem;letter-spacing:.2em;color:var(--gold);margin-top:2px}
+
+/* ── 總覽（存摺列印風） ── */
+.passbook{
+  background:var(--paper);
+  border-radius:var(--radius) var(--radius) 0 0;
+  margin-top:14px;
+  padding:20px 20px 14px;
+  position:relative;
+}
+.passbook::before{ /* 打孔裝飾線 */
+  content:'';position:absolute;top:0;left:0;right:0;height:6px;
+  background:repeating-linear-gradient(90deg,var(--gold) 0 14px,transparent 14px 26px);
+  opacity:.5;border-radius:var(--radius) var(--radius) 0 0;
+}
+.total-row{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.total-label{font-size:.72rem;letter-spacing:.22em;color:var(--muted)}
+.total-amt{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:2rem;color:var(--red);letter-spacing:-.02em}
+.total-amt .cur{font-size:.85rem;color:var(--muted);font-weight:400;margin-right:4px}
+.stat-row{display:flex;gap:0;margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+.stat{flex:1;text-align:center}
+.stat+.stat{border-left:1px dashed var(--line)}
+.stat .v{font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:.95rem}
+.stat .k{font-size:.62rem;letter-spacing:.14em;color:var(--muted);margin-top:2px}
+.budget-wrap{margin-top:12px}
+.budget-bar{height:8px;background:var(--paper-soft);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+.budget-fill{height:100%;background:var(--green-ok);border-radius:99px;transition:width .4s}
+.budget-fill.over{background:var(--red)}
+.budget-txt{display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);margin-top:4px}
+.budget-txt b{font-family:'IBM Plex Mono',monospace;font-weight:500}
+
+/* ── 內頁 ── */
+.page{background:var(--paper);flex:1;padding:0 20px calc(env(safe-area-inset-bottom) + 110px)}
+.section-title{
+  font-size:.7rem;letter-spacing:.24em;color:var(--muted);
+  margin:20px 0 10px;display:flex;align-items:center;gap:10px;
+}
+.section-title::after{content:'';flex:1;height:1px;background:var(--line)}
+
+/* 分類長條 */
+.cat-bars{display:flex;flex-direction:column;gap:8px}
+.cat-bar{display:grid;grid-template-columns:70px 1fr 84px;align-items:center;gap:10px;font-size:.8rem}
+.cat-bar .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cat-bar .track{height:14px;background:var(--paper-soft);border-radius:4px;overflow:hidden}
+.cat-bar .fill{height:100%;border-radius:4px;background:var(--cover);opacity:.85;min-width:2px;transition:width .4s}
+.cat-bar .amt{font-family:'IBM Plex Mono',monospace;font-size:.75rem;text-align:right;color:var(--ink)}
+.cat-bar .pct{color:var(--muted);font-size:.65rem}
+
+/* 每日明細 */
+.day-group{margin-bottom:6px}
+.day-head{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:10px 2px 6px;position:sticky;top:0;background:var(--paper);z-index:2;
+  border-bottom:1px solid var(--line);
+}
+.day-head .d{font-weight:700;font-size:.85rem}
+.day-head .d small{color:var(--muted);font-weight:400;margin-left:6px;font-size:.72rem}
+.day-head .t{font-family:'IBM Plex Mono',monospace;font-size:.8rem;color:var(--red)}
+.entry{
+  display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px dashed var(--line);cursor:pointer;
+}
+.entry:active{background:var(--paper-soft)}
+.entry .ico{
+  width:34px;height:34px;border-radius:10px;background:var(--paper-soft);
+  display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;
+  border:1px solid var(--line);
+}
+.entry .mid{flex:1;min-width:0}
+.entry .nm{font-size:.88rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry .nt{font-size:.68rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.entry .amt{font-family:'IBM Plex Mono',monospace;font-size:.9rem;font-weight:500;white-space:nowrap}
+.empty{
+  text-align:center;color:var(--muted);padding:48px 20px;font-size:.85rem;line-height:1.8;
+}
+.empty .big{font-size:2rem;margin-bottom:8px}
+
+/* ── 底部工具列 + FAB ── */
+.dock{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:520px;
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px calc(env(safe-area-inset-bottom) + 12px);
+  background:linear-gradient(to top,var(--paper) 70%,transparent);
+  z-index:20;
+}
+.dock button{font-family:inherit;cursor:pointer}
+.tool-btn{
+  flex:1;background:#fff;border:1.5px solid var(--line);border-radius:12px;
+  padding:11px 6px;font-size:.78rem;font-weight:700;color:var(--ink);
+  box-shadow:0 2px 8px rgba(20,43,34,.08);
+}
+.tool-btn:active{background:var(--paper-soft)}
+.fab{
+  flex:1.3;background:var(--cover);color:#EFE9DA;border:none;border-radius:12px;
+  padding:12px 6px;font-size:.9rem;font-weight:700;letter-spacing:.1em;
+  box-shadow:0 4px 14px rgba(20,43,34,.35);
+}
+.fab:active{background:var(--cover-deep)}
+
+/* ── Modal ── */
+.overlay{
+  position:fixed;inset:0;background:rgba(20,25,18,.5);z-index:50;
+  display:none;align-items:flex-end;justify-content:center;
+}
+.overlay.show{display:flex}
+.sheet{
+  width:100%;max-width:520px;background:var(--paper);
+  border-radius:18px 18px 0 0;padding:20px 20px calc(env(safe-area-inset-bottom) + 20px);
+  max-height:88vh;overflow-y:auto;animation:up .22s ease;
+}
+@keyframes up{from{transform:translateY(40px);opacity:.5}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}.budget-fill,.cat-bar .fill{transition:none}}
+.sheet h3{font-family:'Noto Serif TC',serif;font-size:1.05rem;margin-bottom:14px;letter-spacing:.06em}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:.68rem;letter-spacing:.12em;color:var(--muted);margin-bottom:5px}
+.field input,.field textarea,.field select{
+  width:100%;border:1.5px solid var(--line);border-radius:10px;background:#fff;
+  padding:11px 12px;font-size:1rem;font-family:inherit;color:var(--ink);
+}
+.field input:focus,.field textarea:focus{outline:2px solid var(--cover);outline-offset:1px;border-color:transparent}
+.field input.amt-input{font-family:'IBM Plex Mono',monospace;font-size:1.4rem;font-weight:600;text-align:right}
+.cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.cat-chip{
+  border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:9px 2px;
+  font-size:.74rem;font-family:inherit;cursor:pointer;text-align:center;color:var(--ink);
+}
+.cat-chip .e{display:block;font-size:1.05rem;margin-bottom:2px}
+.cat-chip.on{border-color:var(--cover);background:var(--cover);color:#EFE9DA}
+.sheet-actions{display:flex;gap:10px;margin-top:16px}
+.btn{
+  flex:1;border:none;border-radius:11px;padding:13px;font-size:.92rem;font-weight:700;
+  font-family:inherit;cursor:pointer;letter-spacing:.06em;
+}
+.btn-primary{background:var(--cover);color:#EFE9DA}
+.btn-primary:active{background:var(--cover-deep)}
+.btn-ghost{background:var(--paper-soft);color:var(--ink);border:1.5px solid var(--line)}
+.btn-danger{background:none;border:1.5px solid var(--red);color:var(--red);flex:.6}
+.hint{font-size:.72rem;color:var(--muted);line-height:1.7;margin-top:10px}
+.report-box{
+  background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:12px;
+  font-family:'IBM Plex Mono',monospace;font-size:.68rem;line-height:1.6;
+  max-height:40vh;overflow:auto;white-space:pre-wrap;word-break:break-all;margin-bottom:4px;
+}
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:120px;z-index:99;
+  background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:99px;
+  font-size:.8rem;opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 封面 -->
+  <header class="cover">
+    <div class="cover-top">
+      <h1>帳<span class="gold">・</span>本</h1>
+      <span class="cover-sub">Jason's Ledger</span>
+    </div>
+    <div class="month-nav">
+      <button onclick="shiftMonth(-1)" aria-label="上個月">◀</button>
+      <div class="month-label" id="monthLabel"></div>
+      <button onclick="shiftMonth(1)" aria-label="下個月">▶</button>
+    </div>
+  </header>
+
+  <!-- 存摺總覽 -->
+  <div class="passbook">
+    <div class="total-row">
+      <span class="total-label">本 月 支 出</span>
+      <span class="total-amt mono"><span class="cur">NT$</span><span id="totalAmt">0</span></span>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="v mono" id="statCount">0</div><div class="k">筆數</div></div>
+      <div class="stat"><div class="v mono" id="statAvg">0</div><div class="k">日均</div></div>
+      <div class="stat"><div class="v mono" id="statTopCat">—</div><div class="k">最大分類</div></div>
+    </div>
+    <div class="budget-wrap" id="budgetWrap" style="display:none">
+      <div class="budget-bar"><div class="budget-fill" id="budgetFill"></div></div>
+      <div class="budget-txt"><span>預算使用</span><b id="budgetTxt"></b></div>
+    </div>
+  </div>
+
+  <!-- 內頁 -->
+  <main class="page">
+    <div class="section-title">分 類 統 計</div>
+    <div class="cat-bars" id="catBars"></div>
+
+    <div class="section-title">每 日 明 細</div>
+    <div id="entryList"></div>
+  </main>
+
+  <!-- 底部工具 -->
+  <div class="dock">
+    <button class="tool-btn" onclick="openExport()">📤 匯出復盤</button>
+    <button class="fab" onclick="openAdd()">＋ 記一筆</button>
+    <button class="tool-btn" onclick="openSettings()">⚙ 設定</button>
+  </div>
+</div>
+
+<!-- 新增 / 編輯 -->
+<div class="overlay" id="addModal">
+  <div class="sheet">
+    <h3 id="addTitle">記一筆</h3>
+    <div class="field">
+      <label>金額（NT$）</label>
+      <input class="amt-input" id="fAmt" type="number" inputmode="decimal" placeholder="0">
+    </div>
+    <div class="field">
+      <label>分類</label>
+      <div class="cat-grid" id="catGrid"></div>
+    </div>
+    <div class="field">
+      <label>項目</label>
+      <input id="fName" type="text" placeholder="例：便當、悠遊卡加值">
+    </div>
+    <div class="field" style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label>日期</label>
+        <input id="fDate" type="date">
+      </div>
+      <div style="flex:1.4">
+        <label>備註（選填）</label>
+        <input id="fNote" type="text" placeholder="">
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-danger" id="btnDelete" style="display:none" onclick="deleteEntry()">刪除</button>
+      <button class="btn btn-ghost" onclick="closeModal('addModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveEntry()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 匯出復盤 -->
+<div class="overlay" id="exportModal">
+  <div class="sheet">
+    <h3>匯出復盤報告</h3>
+    <div class="report-box" id="reportPreview"></div>
+    <div class="hint">把這份報告上傳或貼給 Claude，就能進行本月消費復盤分析。</div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" onclick="copyReport()">📋 複製</button>
+      <button class="btn btn-ghost" onclick="downloadReport()">⬇ 下載 .md</button>
+      <button class="btn btn-primary" onclick="closeModal('exportModal')">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 設定 -->
+<div class="overlay" id="settingsModal">
+  <div class="sheet">
+    <h3>設定</h3>
+    <div class="field">
+      <label>每月預算（NT$，留空表示不設）</label>
+      <input class="amt-input" id="fBudget" type="number" inputmode="numeric" placeholder="例：25000">
+    </div>
+    <div class="field">
+      <label>資料備份</label>
+      <div class="sheet-actions" style="margin-top:0">
+        <button class="btn btn-ghost" onclick="exportJSON()">⬇ 匯出全部資料 (JSON)</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">⬆ 匯入還原</button>
+      </div>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(this)">
+    </div>
+    <div class="hint">
+      資料儲存於此裝置的瀏覽器（localStorage）。建議每月匯出復盤時順手備份一次 JSON。<br>
+      如需跨裝置同步，可比照 dailywork 的模式接上 Firebase Firestore——資料結構已設計成單一 entries 陣列，直接整包同步即可。
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" onclick="closeModal('settingsModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveSettings()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════ 資料層 ══════════
+const LS_KEY = 'jason_ledger_v1';
+const CATS = [
+  {id:'food',    e:'🍜', nm:'飲食'},
+  {id:'drink',   e:'☕', nm:'飲料'},
+  {id:'transport',e:'🚇', nm:'交通'},
+  {id:'shopping',e:'🛍️', nm:'購物'},
+  {id:'fun',     e:'🎮', nm:'娛樂'},
+  {id:'daily',   e:'🧺', nm:'日用'},
+  {id:'health',  e:'💊', nm:'醫療'},
+  {id:'learn',   e:'📚', nm:'學習'},
+  {id:'social',  e:'🤝', nm:'人情'},
+  {id:'sub',     e:'🔁', nm:'訂閱'},
+  {id:'sport',   e:'🏀', nm:'運動'},
+  {id:'other',   e:'📦', nm:'其他'},
+];
+const catOf = id => CATS.find(c=>c.id===id) || CATS[CATS.length-1];
+
+let db = { entries: [], budget: null };
+function load(){
+  try{ const raw = localStorage.getItem(LS_KEY); if(raw) db = Object.assign({entries:[],budget:null}, JSON.parse(raw)); }
+  catch(e){ console.warn('load fail', e); }
+}
+function persist(){ localStorage.setItem(LS_KEY, JSON.stringify(db)); }
+
+// ══════════ 狀態 ══════════
+const today = () => new Date().toISOString().slice(0,10);
+let viewYM = today().slice(0,7);   // '2026-07'
+let editingId = null;
+let selectedCat = 'food';
+
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const WEEK = ['日','一','二','三','四','五','六'];
+
+function monthEntries(ym){
+  return db.entries.filter(e=>e.date.startsWith(ym)).sort((a,b)=> b.date.localeCompare(a.date) || b.ts - a.ts);
+}
+function prevYM(ym){
+  const [y,m] = ym.split('-').map(Number);
+  const d = new Date(y, m-2, 1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+function daysElapsed(ym){
+  const [y,m] = ym.split('-').map(Number);
+  const now = new Date();
+  if (ym === today().slice(0,7)) return now.getDate();
+  return new Date(y, m, 0).getDate(); // 該月天數
+}
+
+// ══════════ 渲染 ══════════
+function renderAll(){
+  const [y,m] = viewYM.split('-');
+  document.getElementById('monthLabel').innerHTML =
+    `${y} 年 ${Number(m)} 月<small>${viewYM}</small>`;
+
+  const es = monthEntries(viewYM);
+  const total = es.reduce((s,e)=>s+e.amount,0);
+  document.getElementById('totalAmt').textContent = fmt(total);
+  document.getElementById('statCount').textContent = es.length;
+  document.getElementById('statAvg').textContent = fmt(es.length ? total/daysElapsed(viewYM) : 0);
+
+  // 分類統計
+  const byCat = {};
+  es.forEach(e=>{ byCat[e.cat]=(byCat[e.cat]||0)+e.amount; });
+  const sorted = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('statTopCat').textContent = sorted.length ? catOf(sorted[0][0]).nm : '—';
+
+  const max = sorted.length ? sorted[0][1] : 1;
+  document.getElementById('catBars').innerHTML = sorted.length
+    ? sorted.map(([cid,amt])=>{
+        const c = catOf(cid), pct = total ? (amt/total*100) : 0;
+        return `<div class="cat-bar">
+          <span class="nm">${c.e} ${c.nm}</span>
+          <div class="track"><div class="fill" style="width:${(amt/max*100).toFixed(1)}%"></div></div>
+          <span class="amt">${fmt(amt)} <span class="pct">${pct.toFixed(0)}%</span></span>
+        </div>`;
+      }).join('')
+    : `<div class="empty" style="padding:20px"><div>本月還沒有紀錄</div></div>`;
+
+  // 預算
+  const bw = document.getElementById('budgetWrap');
+  if (db.budget){
+    bw.style.display = 'block';
+    const pct = Math.min(total/db.budget*100, 100);
+    const fill = document.getElementById('budgetFill');
+    fill.style.width = pct+'%';
+    fill.classList.toggle('over', total > db.budget);
+    document.getElementById('budgetTxt').innerHTML =
+      `${fmt(total)} / ${fmt(db.budget)}（${(total/db.budget*100).toFixed(0)}%）${total>db.budget?' ⚠️ 超支':''}`;
+  } else bw.style.display = 'none';
+
+  // 每日明細
+  const listEl = document.getElementById('entryList');
+  if (!es.length){
+    listEl.innerHTML = `<div class="empty"><div class="big">📖</div>翻開新的一頁。<br>點下方「＋ 記一筆」開始記帳。</div>`;
+    return;
+  }
+  const byDay = {};
+  es.forEach(e=>{ (byDay[e.date]=byDay[e.date]||[]).push(e); });
+  listEl.innerHTML = Object.keys(byDay).sort().reverse().map(date=>{
+    const items = byDay[date];
+    const dTotal = items.reduce((s,e)=>s+e.amount,0);
+    const d = new Date(date+'T00:00:00');
+    return `<div class="day-group">
+      <div class="day-head">
+        <span class="d">${d.getMonth()+1}/${d.getDate()}<small>週${WEEK[d.getDay()]}</small></span>
+        <span class="t">-${fmt(dTotal)}</span>
+      </div>
+      ${items.map(e=>{
+        const c = catOf(e.cat);
+        return `<div class="entry" onclick="openEdit('${e.id}')">
+          <div class="ico">${c.e}</div>
+          <div class="mid">
+            <div class="nm">${esc(e.name)}</div>
+            ${e.note?`<div class="nt">${esc(e.note)}</div>`:''}
+          </div>
+          <span class="amt">${fmt(e.amount)}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+function shiftMonth(d){
+  const [y,m] = viewYM.split('-').map(Number);
+  const nd = new Date(y, m-1+d, 1);
+  viewYM = nd.getFullYear()+'-'+String(nd.getMonth()+1).padStart(2,'0');
+  renderAll();
+}
+
+// ══════════ 新增 / 編輯 ══════════
+function renderCatGrid(){
+  document.getElementById('catGrid').innerHTML = CATS.map(c=>
+    `<button type="button" class="cat-chip ${c.id===selectedCat?'on':''}" onclick="pickCat('${c.id}')">
+      <span class="e">${c.e}</span>${c.nm}</button>`).join('');
+}
+function pickCat(id){ selectedCat = id; renderCatGrid(); }
+
+function openAdd(){
+  editingId = null; selectedCat = 'food';
+  document.getElementById('addTitle').textContent = '記一筆';
+  document.getElementById('btnDelete').style.display = 'none';
+  document.getElementById('fAmt').value = '';
+  document.getElementById('fName').value = '';
+  document.getElementById('fNote').value = '';
+  document.getElementById('fDate').value = viewYM === today().slice(0,7) ? today() : viewYM+'-01';
+  renderCatGrid();
+  openModal('addModal');
+  setTimeout(()=>document.getElementById('fAmt').focus(), 250);
+}
+function openEdit(id){
+  const e = db.entries.find(x=>x.id===id); if(!e) return;
+  editingId = id; selectedCat = e.cat;
+  document.getElementById('addTitle').textContent = '編輯這筆';
+  document.getElementById('btnDelete').style.display = 'block';
+  document.getElementById('fAmt').value = e.amount;
+  document.getElementById('fName').value = e.name;
+  document.getElementById('fNote').value = e.note || '';
+  document.getElementById('fDate').value = e.date;
+  renderCatGrid();
+  openModal('addModal');
+}
+function saveEntry(){
+  const amt = Number(document.getElementById('fAmt').value);
+  if (!amt || amt <= 0){ toast('請輸入金額'); return; }
+  const data = {
+    amount: amt,
+    cat: selectedCat,
+    name: document.getElementById('fName').value.trim() || catOf(selectedCat).nm,
+    note: document.getElementById('fNote').value.trim(),
+    date: document.getElementById('fDate').value || today(),
+  };
+  if (editingId){
+    Object.assign(db.entries.find(x=>x.id===editingId), data, {ts: Date.now()});
+  } else {
+    db.entries.push(Object.assign({id:'e'+Date.now()+Math.random().toString(36).slice(2,6), ts:Date.now()}, data));
+  }
+  persist();
+  viewYM = data.date.slice(0,7);
+  closeModal('addModal');
+  renderAll();
+  toast('已記下 ✓');
+}
+function deleteEntry(){
+  if (!editingId) return;
+  db.entries = db.entries.filter(x=>x.id!==editingId);
+  persist(); closeModal('addModal'); renderAll(); toast('已刪除');
+}
+
+// ══════════ 匯出復盤報告 ══════════
+function buildReport(ym){
+  const es = monthEntries(ym);
+  const total = es.reduce((s,e)=>s+e.amount,0);
+  const pym = prevYM(ym);
+  const pes = monthEntries(pym);
+  const pTotal = pes.reduce((s,e)=>s+e.amount,0);
+  const [y,m] = ym.split('-');
+
+  const byCat = {}, pByCat = {};
+  es.forEach(e=>{ byCat[e.cat]=(byCat[e.cat]||{amt:0,n:0}); byCat[e.cat].amt+=e.amount; byCat[e.cat].n++; });
+  pes.forEach(e=>{ pByCat[e.cat]=(pByCat[e.cat]||0)+e.amount; });
+
+  const byDay = {};
+  es.forEach(e=>{ byDay[e.date]=(byDay[e.date]||{amt:0,n:0}); byDay[e.date].amt+=e.amount; byDay[e.date].n++; });
+
+  let md = `# 記帳復盤報告 — ${y} 年 ${Number(m)} 月\n\n`;
+  md += `## 總覽\n`;
+  md += `- 支出總額：NT$ ${fmt(total)}\n`;
+  md += `- 記帳筆數：${es.length} 筆\n`;
+  md += `- 日均支出：NT$ ${fmt(es.length ? total/daysElapsed(ym) : 0)}\n`;
+  if (db.budget) md += `- 月預算：NT$ ${fmt(db.budget)}（使用 ${(total/db.budget*100).toFixed(1)}%${total>db.budget?'，已超支':''}）\n`;
+  if (pes.length){
+    const diff = total - pTotal;
+    md += `- 較上月（${pym}，NT$ ${fmt(pTotal)}）：${diff>=0?'+':''}${fmt(diff)}（${pTotal?((diff/pTotal*100).toFixed(1)):'—'}%）\n`;
+  } else {
+    md += `- 上月無資料，無法比較\n`;
+  }
+
+  md += `\n## 分類統計\n\n| 分類 | 金額 | 佔比 | 筆數 | 較上月 |\n|---|---:|---:|---:|---:|\n`;
+  Object.entries(byCat).sort((a,b)=>b[1].amt-a[1].amt).forEach(([cid,v])=>{
+    const c = catOf(cid);
+    const p = pByCat[cid] || 0;
+    const d = v.amt - p;
+    md += `| ${c.e} ${c.nm} | ${fmt(v.amt)} | ${total?(v.amt/total*100).toFixed(1):0}% | ${v.n} | ${pes.length?(d>=0?'+':'')+fmt(d):'—'} |\n`;
+  });
+
+  const top = [...es].sort((a,b)=>b.amount-a.amount).slice(0,10);
+  md += `\n## 前 ${top.length} 大支出\n\n| 日期 | 項目 | 分類 | 金額 | 備註 |\n|---|---|---|---:|---|\n`;
+  top.forEach(e=>{
+    md += `| ${e.date.slice(5)} | ${e.name} | ${catOf(e.cat).nm} | ${fmt(e.amount)} | ${e.note||''} |\n`;
+  });
+
+  md += `\n## 每日支出\n\n| 日期 | 金額 | 筆數 |\n|---|---:|---:|\n`;
+  Object.keys(byDay).sort().forEach(d=>{
+    md += `| ${d.slice(5)}（週${WEEK[new Date(d+'T00:00:00').getDay()]}） | ${fmt(byDay[d].amt)} | ${byDay[d].n} |\n`;
+  });
+
+  md += `\n## 完整明細\n\n| 日期 | 項目 | 分類 | 金額 | 備註 |\n|---|---|---|---:|---|\n`;
+  [...es].sort((a,b)=>a.date.localeCompare(b.date)||a.ts-b.ts).forEach(e=>{
+    md += `| ${e.date.slice(5)} | ${e.name} | ${catOf(e.cat).nm} | ${fmt(e.amount)} | ${e.note||''} |\n`;
+  });
+
+  md += `\n---\n\n## 給 Claude 的分析請求\n\n`;
+  md += `請根據以上資料，幫我復盤 ${y} 年 ${Number(m)} 月的支出：\n\n`;
+  md += `1. **消費結構**：各分類佔比是否健康？有沒有異常集中或異常成長的分類？\n`;
+  md += `2. **可優化項目**：找出重複性、衝動性、或高頻小額的支出，估算可省下的金額。\n`;
+  md += `3. **趨勢與模式**：與上月比較的變化、平日 vs 週末的消費模式、有沒有特定日期的異常峰值。\n`;
+  md += `4. **下月行動**：給我 3 個具體可執行的建議，並提出下個月的分類預算配置。\n`;
+  return md;
+}
+
+let currentReport = '';
+function openExport(){
+  const es = monthEntries(viewYM);
+  if (!es.length){ toast('本月沒有紀錄可匯出'); return; }
+  currentReport = buildReport(viewYM);
+  document.getElementById('reportPreview').textContent = currentReport;
+  openModal('exportModal');
+}
+function copyReport(){
+  navigator.clipboard.writeText(currentReport)
+    .then(()=>toast('已複製，貼給 Claude 吧'))
+    .catch(()=>toast('複製失敗，請手動選取'));
+}
+function downloadReport(){
+  const blob = new Blob([currentReport], {type:'text/markdown;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ledger-report-${viewYM}.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ══════════ 設定 / 備份 ══════════
+function openSettings(){
+  document.getElementById('fBudget').value = db.budget || '';
+  openModal('settingsModal');
+}
+function saveSettings(){
+  const v = Number(document.getElementById('fBudget').value);
+  db.budget = v > 0 ? v : null;
+  persist(); closeModal('settingsModal'); renderAll(); toast('已儲存');
+}
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(db, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ledger-backup-${today()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importJSON(input){
+  const f = input.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const data = JSON.parse(r.result);
+      if (!Array.isArray(data.entries)) throw new Error('格式不符');
+      // 以 id 合併：匯入的和現有的取聯集，較新 ts 為準
+      const map = {};
+      [...db.entries, ...data.entries].forEach(e=>{
+        if (!map[e.id] || (e.ts||0) > (map[e.id].ts||0)) map[e.id] = e;
+      });
+      db.entries = Object.values(map);
+      if (data.budget) db.budget = data.budget;
+      persist(); renderAll(); toast(`已匯入，共 ${db.entries.length} 筆`);
+    }catch(err){ toast('匯入失敗：'+err.message); }
+  };
+  r.readAsText(f);
+  input.value = '';
+}
+
+// ══════════ 共用 ══════════
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.overlay').forEach(ov=>{
+  ov.addEventListener('click', e=>{ if(e.target===ov) ov.classList.remove('show'); });
+});
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+// ══════════ 啟動 ══════════
+load();
+renderAll();
+</script>
+</body>
+</html>
