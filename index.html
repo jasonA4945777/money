@@ -499,9 +499,9 @@
 
   async function loadStateFor(monthKey){
     try{
-      const res = await window.storage.get('budget:' + monthKey);
-      if(res && res.value){
-        const s = JSON.parse(res.value);
+      const raw = localStorage.getItem('budget:' + monthKey);
+      if(raw){
+        const s = JSON.parse(raw);
         ENVELOPE_DEFS.forEach(def => {
           if(!s.envelopes.find(e=>e.id===def.id)){
             s.envelopes.push({id:def.id, cap:def.defaultCap});
@@ -521,7 +521,7 @@
 
   async function saveState(){
     try{
-      await window.storage.set('budget:' + state.monthKey, JSON.stringify(state));
+      localStorage.setItem('budget:' + state.monthKey, JSON.stringify(state));
     }catch(e){
       console.error('儲存失敗', e);
     }
