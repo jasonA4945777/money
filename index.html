@@ -468,11 +468,9 @@
   }
   function prevMonthKey(key){ return shiftCycleKey(key, -1); }
 
-  // 預設顯示：今天所在、或即將入帳的下一個薪資週期
+  // 預設顯示：今天實際所在的薪資週期
   function defaultCycleKey(now){
-    const day = now.getDate();
-    if(day < CYCLE_START_DAY) return cycleKeyOf(new Date(now.getFullYear(), now.getMonth(), CYCLE_START_DAY));
-    return cycleKeyOf(new Date(now.getFullYear(), now.getMonth()+1, CYCLE_START_DAY));
+    return cycleKeyOf(now);
   }
 
   function buildMonthOptions(){
